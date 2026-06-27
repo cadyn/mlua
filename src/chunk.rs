@@ -502,6 +502,38 @@ impl Compiler {
     }
 }
 
+/// Luau JIT options.
+#[cfg(any(feature = "luau-jit", doc))]
+#[cfg_attr(docsrs, doc(cfg(feature = "luau-jit")))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct JitOptions {
+    pub(crate) inliner: bool,
+}
+
+#[cfg(any(feature = "luau-jit", doc))]
+impl Default for JitOptions {
+    fn default() -> Self {
+        const { Self::new() }
+    }
+}
+
+#[cfg(any(feature = "luau-jit", doc))]
+impl JitOptions {
+    /// Creates default JIT options.
+    pub const fn new() -> Self {
+        JitOptions { inliner: false }
+    }
+
+    /// Toggles the runtime bytecode inliner.
+    ///
+    /// Disabled by default. Changing this option does not affect already loaded functions.
+    #[must_use]
+    pub const fn set_inliner(mut self, enabled: bool) -> Self {
+        self.inliner = enabled;
+        self
+    }
+}
+
 impl Chunk<'_> {
     /// Returns the name of this chunk.
     pub fn name(&self) -> &str {
@@ -751,7 +783,7 @@ impl Chunk<'_> {
                 return ChunkMode::Binary;
             }
             #[cfg(feature = "luau")]
-            if *source.first().unwrap_or(&u8::MAX) < b'\t' {
+            if unsafe { ffi::luaL_isbytecode(source.as_ptr().cast(), source.len()) } {
                 return ChunkMode::Binary;
             }
         }

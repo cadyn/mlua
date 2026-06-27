@@ -35,6 +35,8 @@ use crate::value::{Nil, Value};
 #[cfg(not(feature = "luau"))]
 use crate::{debug::HookTriggers, types::HookKind};
 
+#[cfg(any(feature = "luau-jit", doc))]
+use crate::chunk::JitOptions;
 #[cfg(any(feature = "luau", doc))]
 use crate::{buffer::Buffer, chunk::Compiler};
 
@@ -1249,6 +1251,23 @@ impl Lua {
     pub fn enable_jit(&self, enable: bool) {
         let lua = self.lock();
         unsafe { (*lua.extra.get()).enable_jit = enable };
+    }
+
+    /// Configures JIT options for this Lua VM.
+    #[cfg(any(feature = "luau-jit", doc))]
+    #[cfg_attr(docsrs, doc(cfg(feature = "luau-jit")))]
+    pub fn set_jit_options(&self, options: JitOptions) {
+        let lua = self.lock();
+        unsafe {
+            let state = lua.main_state();
+            if options.inliner {
+                let _ = Self::set_fflag("LuauCallFeedback", true);
+                let _ = Self::set_fflag("LuauEmitCallFeedback", true);
+                ffi::luau_enable_jit_inliner(state);
+            } else {
+                ffi::luau_disable_jit_inliner(state);
+            }
+        }
     }
 
     /// Sets Luau feature flag (global setting).
